@@ -167,9 +167,15 @@ def guardar_fila(evento_nombre, d):
 def procesar_llegada_auto():
     global id_auto, contador_llegaron, contador_abandonos
     id_auto += 1
+    d = {}
+
+    # Programar la próxima llegada (siempre)
+    rnd_e, t_e = gen_llegada()
+    push_evento(reloj + t_e, "llegada_auto")
+    d.update(rnd_lleg=rnd_e, t_entre=t_e)
+
     aid = id_auto
     contador_llegaron += 1
-    d = {}
     abandona = False
 
     lg = lugar_libre()
@@ -195,11 +201,6 @@ def procesar_llegada_auto():
         contador_abandonos += 1
         abandona = True
         autos[aid] = {"id": aid, "tipo": None, "importe": None, "estado": "FueraDeSistema"}
-
-    # Programar la próxima llegada (siempre)
-    rnd_e, t_e = gen_llegada()
-    push_evento(reloj + t_e, "llegada_auto")
-    d.update(rnd_lleg=rnd_e, t_entre=t_e)
 
     nombre = f"llegada_auto_a{aid}" + (" (abandona)" if abandona else "")
     guardar_fila(nombre, d)
