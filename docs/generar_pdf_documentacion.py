@@ -94,13 +94,13 @@ P("La idea (buena práctica) es separar <b>lógica</b> de <b>interfaz</b>: el mo
 el += [Paragraph("3. Cómo funciona el motor (DES)", h1)]
 el += [Paragraph("Objetos", h2)]
 bullets(["<b>Playa</b>: N lugares (Libre / Ocupado).",
-         "<b>Zona de cobro</b>: capacidad 1 (Libre / Ocupado).",
+         "<b>Zona de cobro</b>: N lugares (Libre / Ocupado).",
          "<b>Auto</b>: con 3 atributos clave — <b>estado</b>, <b>importe a pagar</b> y <b>tipo</b> "
          "(Pequeño/Grande/Utilitario)."])
 el += [Paragraph("Eventos", h2)]
 bullets(["<b>Llegada de auto</b>: entra si hay lugar; si está lleno, sigue de largo y no vuelve.",
-         "<b>Fin de estacionamiento</b>: va a cobrar (si la zona está libre) o espera en la cola de cobro.",
-         "<b>Fin de cobro</b>: paga, se va y libera la zona de cobro para el siguiente."])
+         "<b>Fin de estacionamiento</b>: Va a la zona de cobro. Si no hay cola, pasa a ser cobrado. Si hay cola, se agrega a la misma.",
+         "<b>Fin de cobro</b>: paga, se va y libera el servidor de cobro para el siguiente."])
 el += [Paragraph("El loop principal", h2)]
 P("Hay una <b>cola de eventos</b> (un <i>heap</i>) ordenada por tiempo. El loop saca el próximo "
   "evento, mueve el reloj a ese instante, ejecuta lo que corresponde y guarda una fila. Repite hasta "
