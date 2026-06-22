@@ -1,10 +1,7 @@
 """
 TP5 — Simulación Playa de Estacionamiento (Grupo 13)
-Lógica DES pura (sin UI). Cola de eventos con heapq.
 
-Paso 1: llegadas de autos, ocupación de los 8 lugares y fin de estacionamiento.
-Los RND se toman (sembrados) del Excel del TP para reproducir la corrida manual;
-cuando se agotan, se generan aleatorios (round a 2 decimales).
+Paso 1: llegadas de autos, ocupación de los 8 lugares y fin de estacionamiento;
 """
 import heapq
 import math
@@ -13,13 +10,13 @@ import random
 import euler
 
 # ── Constantes / parámetros (los "valores en rojo" del enunciado) ──────────────
-N_LUGARES       = 8              # sectores de estacionamiento (parametrizable; pregunta b usa 10)
-MEDIA_LLEGADA   = 13 / 60        # media entre llegadas, en HORAS (13 min)
-MAX_ITER        = 99999          # init = fila 0; eventos 1..99999 → 100.000 filas
+N_LUGARES       = 8            
+MEDIA_LLEGADA   = 13 / 60       
+MAX_ITER        = 99999          
 
 # Cobro (parte continua, integrada por Euler en euler.py)
-T_EULER         = 2              # constante T del enunciado (parametrizable)
-H_EULER         = 0.1            # paso de integración de Euler (parametrizable, >= 0.1)
+T_EULER         = 2              
+H_EULER         = 0.1            
 
 # Precios por hora según tipo de auto
 PRECIO = {"Pequeño": 500, "Grande": 1500, "Utilitario": 3000}
@@ -28,7 +25,7 @@ PRECIO = {"Pequeño": 500, "Grande": 1500, "Utilitario": 3000}
 PROB_TIPO  = {"Pequeño": 0.45, "Grande": 0.25, "Utilitario": 0.30}
 PROB_HORAS = {1: 0.50, 2: 0.30, 3: 0.15, 4: 0.05}
 
-# ── RND sembrados (extraídos del Excel "TP5 Playa Version1") ───────────────────
+# ── RND sembrados TRUE = Mismos RND excel, FALSE = RND aleatorios ───────────────────
 USAR_SEMILLA = False
 RND_LLEGADA = [0.25, 0.34, 0.45, 0.75, 0.18, 0.8, 0.91, 0.15, 0.42, 0.88, 0.94, 0.98]
 RND_TIPO    = [0.55, 0.21, 0.78, 0.78, 0.65, 0.56, 0.21, 0.44, 0.9, 0.59]
@@ -37,8 +34,8 @@ RND_HORAS   = [0.88, 0.65, 0.65, 0.05, 0.52, 0.81, 0.61, 0.15, 0.96, 0.42]
 # ── Estado global ──────────────────────────────────────────────────────────────
 lugares       = []
 autos         = {}
-zona_cobro    = {}               # {"estado": "Libre"/"Ocupado", "auto": id|None}
-cola_cobro    = []               # ids de autos que terminaron de estacionar y esperan el cobro
+zona_cobro    = {}               
+cola_cobro    = []               
 eventos       = []
 reloj         = 0.0
 iteracion     = 0
@@ -46,10 +43,10 @@ id_auto       = 0
 _seq          = 0
 _i_lleg = _i_tipo = _i_horas = 0
 recaudacion   = 0.0
-acum_ocupacion = 0.0             # ∫ lugares_ocupados dt  → para % de utilización
-contador_llegaron  = 0           # autos que llegaron en total
-contador_abandonos = 0           # autos que se fueron por playa llena (no entran, no vuelven)
-tablas_euler  = []               # (auto_id, tipo, C, T, h, umbral, tabla) para mostrar/exportar
+acum_ocupacion = 0.0             
+contador_llegaron  = 0           
+contador_abandonos = 0           
+tablas_euler  = []               
 vector_estado = []
 
 
@@ -103,7 +100,7 @@ def siguiente_evento():
 
 
 def tiempo_de(tipo):
-    ts = [e[0] for e in eventos if e[2] == tipo]
+    ts = [e[0] for e in eventos if e[2] == tipo] ##ts es el tiempo del evento que se busca, si no hay eventos de ese tipo devuelve None
     return min(ts) if ts else None
 
 
@@ -218,7 +215,7 @@ def _iniciar_cobro(aid, C):
     t_cobro = t_min / 60.0   # minutos → horas
     fin = reloj + t_cobro
 
-    zona_cobro["estado"] = "Ocupado"
+    zona_cobro["estado"] = "AC"
     zona_cobro["auto"]   = aid
     auto["estado"]       = "EnCobro"
 
@@ -252,7 +249,7 @@ def procesar_fin_estacionamiento(lugar_id):
 def procesar_fin_cobro(aid):
     global recaudacion
 
-    # el auto paga y se destruye en el acto: EnCobro → destrucción (no hay estado "Pago")
+    # el auto paga y se destruye en el acto: EnCobro → destrucción
     recaudacion += autos[aid]["importe"]
     zona_cobro["estado"] = "Libre"
     zona_cobro["auto"]   = None
@@ -272,8 +269,7 @@ def simular(tiempo_max, hora_desde=0.0, max_filas=None):
     """Corre la simulación. Se detiene por lo que ocurra primero:
        - reloj >= tiempo_max (X),
        - MAX_ITER iteraciones,
-       - max_filas filas visibles (con reloj >= hora_desde) ya generadas.
-    Así, si se piden i filas desde la hora j, solo se simula esa ventana."""
+       - max_filas filas visibles (con reloj >= hora_desde) ya generadas."""
     global reloj, iteracion, acum_ocupacion
 
     rnd_e, t_e = gen_llegada()
@@ -311,16 +307,15 @@ def simular(tiempo_max, hora_desde=0.0, max_filas=None):
 
 
 def estadisticas(tiempo_max):
-    """Respuestas a las preguntas del enunciado (Grupo 13)."""
     pct_aband = (contador_abandonos / contador_llegaron * 100) if contador_llegaron else 0.0
-    pct_util  = (acum_ocupacion / tiempo_max * 100) if tiempo_max else 0.0   # acum ya viene /N
+    pct_util  = (acum_ocupacion / tiempo_max * 100) if tiempo_max else 0.0  
     return {
         "recaudacion": recaudacion,          # a) recaudación de la playa
         "pct_utilizacion": pct_util,         # c) % de utilización de los sectores
         "llegaron": contador_llegaron,
         "abandonos": contador_abandonos,
-        "pct_abandono": pct_aband,
-        "lugares": N_LUGARES,                # para el what-if b) (correr con 10)
+        "pct_abandono": pct_aband, 
+        "lugares": N_LUGARES,               
     }
 
 

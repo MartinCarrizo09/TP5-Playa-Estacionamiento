@@ -4,51 +4,46 @@ Interfaz gráfica PyQt5. Motor en simulacion.py + euler.py.
 
 Correr:  pip install PyQt5  &&  python main.py
 """
-import sys
+import sys 
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt
 
 import simulacion as sim
-import euler  # noqa: F401  (lo usa el motor; se importa para tenerlo en el paquete)
 
 
 # ── Colores de estado (Catppuccin Mocha) ───────────────────────────────────────
 COLOR_ESTADO = {
-    "Libre": "#a6e3a1", "OC": "#fab387", "Ocupado": "#fab387",
+    "Libre": "#a6e3a1", 
+    "OC": "#fab387", "AC": "#fab387",
     "CLD": "#a6e3a1", "LL": "#f38ba8",
-    "Pequeño": "#89dceb", "Grande": "#fab387", "Utilitario": "#cba6f7",
-    "Estacionado": "#a6e3a1", "EsperandoCobro": "#f9e2af", "EnCobro": "#f38ba8",
+    "Pequeño": "#89dceb", 
+    "Grande": "#fab387", 
+    "Utilitario": "#cba6f7",
+    "Estacionado": "#a6e3a1", 
+    "EsperandoCobro": "#f9e2af", 
+    "EnCobro": "#f38ba8",
     "FueraDeSistema": "#c0c4cf",
 }
 
 # Tema CLARO (Catppuccin Latte) — superficies claras, sin blanco puro
-DARK = """
+WHITE = """
 QWidget { background:#e6e9ef; color:#4c4f69; font-size:12px; }
 QGroupBox { background:#eff1f5; border:1px solid #bcc0cc; border-radius:6px; margin-top:10px; }
 QGroupBox::title { subcontrol-origin: margin; left:10px; padding:0 4px; color:#1e66f5; font-weight:bold; }
 QLineEdit { background:#f4f5f8; border:1px solid #bcc0cc; border-radius:4px; padding:2px; color:#4c4f69; }
-QPushButton { background:#1e66f5; color:#ffffff; border:none; border-radius:6px;
-              padding:8px 16px; font-weight:bold; min-height:20px; }
-QPushButton:hover { background:#3b7bf7; }
-QPushButton:pressed { background:#1452d0; }
-QPushButton:disabled { background:#ccd0da; color:#8c8fa1; }
-QPushButton#secundario { background:#dce0e8; color:#4c4f69; border:1px solid #acb0be; }
-QPushButton#secundario:hover { background:#ccd0da; border:1px solid #1e66f5; }
 QTableView { background:#e9ecf2; alternate-background-color:#dfe3ea; gridline-color:transparent;
              color:#4c4f69; selection-background-color:#7287fd; selection-color:#ffffff;
              border:1px solid #bcc0cc; }
 QTabWidget::pane { border:1px solid #bcc0cc; }
 QTabBar::tab { background:#dce0e8; color:#4c4f69; padding:7px 24px; min-width:150px; margin-right:2px; }
 QTabBar::tab:selected { background:#1e66f5; color:#ffffff; }
-QScrollBar:vertical, QScrollBar:horizontal { background:#dce0e8; }
-QScrollBar::handle { background:#acb0be; border-radius:5px; }
 QSplitter::handle { background:#e6e9ef; }
 QSplitter::handle:hover { background:#1e66f5; }
 """
 
 
-def fmt(v):
+def fmt(v): ##
     if v is None:
         return "-"
     if isinstance(v, bool):
@@ -74,7 +69,10 @@ def construir_columnas(n, auto_ids=()):
         ("Datos Auto", "Importe",   lambda r: r["importe"]),
     ]
     for i in range(n):
-        cols.append(("Fin Estac.", f"L{i+1}", lambda r, i=i: r["fin_estac"][i]))
+        cols.append(("Fin Estac.", f"L{i+1}", lambda r, i=i: r["fin_estac"][i])) 
+
+
+
     cols += [
         ("Cobro", "C",            lambda r: r["cobro_C"]),
         ("Cobro", "T. Cobro (h)", lambda r: r["t_cobro"]),
@@ -84,13 +82,17 @@ def construir_columnas(n, auto_ids=()):
         ("Servidor Cobro", "Estado", lambda r: r["cobro_est"]),
         ("Servidor Cobro", "Cola",   lambda r: r["cola"]),
     ]
+
     for i in range(n):
         cols.append((f"Lugar {i+1}", "Estado", lambda r, i=i: r["lug_est"][i]))
         cols.append((f"Lugar {i+1}", "Auto",   lambda r, i=i: r["lug_auto"][i]))
+
+
     cols += [
         ("Estadísticas", "AC Recaudación", lambda r: r["recaudacion"]),
         ("Estadísticas", "AC Ocupación",   lambda r: r["acum_ocup"]),
     ]
+
     # Objetos temporales: una columna-grupo por cada auto presente
     for aid in auto_ids:
         cols.append((f"Auto {aid}", "Estado",  lambda r, a=aid: r["autos"].get(a, (None, None, None))[0]))
@@ -166,8 +168,12 @@ class TablaModel(QtCore.QAbstractTableModel):
 class GroupedHeader(QtWidgets.QHeaderView):
     # Pasteles claros (Catppuccin Latte)
     COLORES = {
-        "Llegada Auto": "#bcc8f5", "Datos Auto": "#bce3c5", "Fin Estac.": "#f5e6b0",
-        "Cobro": "#f5c4cf", "Servidor Playa": "#b3dde4", "Servidor Cobro": "#dcc8ee",
+        "Llegada Auto": "#bcc8f5", 
+        "Datos Auto": "#bce3c5", 
+        "Fin Estac.": "#f5e6b0",
+        "Cobro": "#f5c4cf", 
+        "Servidor Playa": "#b3dde4", 
+        "Servidor Cobro": "#dcc8ee",
         "Estadísticas": "#d2d6e0",
     }
 
@@ -309,11 +315,7 @@ class SimWorker(QtCore.QThread):
         sim.PROB_TIPO = p["prob_tipo"]
         sim.PROB_HORAS = p["prob_horas"]
         sim.resetear_estado()
-        # Simulación COMPLETA: corta por tiempo X o por 100.000 iteraciones (lo que pase primero).
-        # i / j NO afectan la simulación: solo filtran la vista (en aplicar_filtro).
         filas = sim.simular(p["tmax"])
-        # % utilización: dividir por el tiempo REALMENTE simulado (puede cortar antes de tmax
-        # por el tope de 100.000 iteraciones), no por el tmax pedido.
         t_real = filas[-1]["reloj"] if filas else p["tmax"]
         stats = sim.estadisticas(t_real)
         self.terminado.emit(filas, stats, list(sim.tablas_euler))
@@ -327,9 +329,9 @@ class Main(QtWidgets.QMainWindow):
         self.resize(1340, 800)
         self._todas = []
         self._N = 8
-        self.euler_detalle = {}    # auto_id → filas de SU integración (la tabla de detalle es dinámica)
-        self.euler_lbl = {}        # auto_id → rótulo descriptivo
-        self.euler_fila_resumen = {}  # auto_id → fila en la tabla de resumen (para resaltarla)
+        self.euler_detalle = {}  
+        self.euler_lbl = {}
+        self.euler_fila_resumen = {}  
 
         central = QtWidgets.QWidget(); self.setCentralWidget(central)
         v = QtWidgets.QVBoxLayout(central)
@@ -385,7 +387,7 @@ class Main(QtWidgets.QMainWindow):
         campo(3, 2, "% 3 horas", "h3", 15)
         campo(3, 3, "% 4 horas", "h4", 5)
         campo(4, 0, "Mostrar desde hora j", "j", 0)
-        campo(4, 1, "Cant. filas i", "i", 200)   # vista: muestra 200 filas (0/vacío = todas)
+        campo(4, 1, "Cant. filas i", "i", 200)
 
         self.btn = QtWidgets.QPushButton("▶  Simular")
         self.btn.clicked.connect(self.on_simular)
@@ -561,6 +563,6 @@ class Main(QtWidgets.QMainWindow):
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     app.setStyle("Fusion")
-    app.setStyleSheet(DARK)
+    app.setStyleSheet(WHITE)
     win = Main(); win.show()
     sys.exit(app.exec_())
