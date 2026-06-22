@@ -19,7 +19,6 @@ gráfica en **PyQt5**. Trabajo Práctico 5 de Laboratorio de Simulación (4K3).
 | `main.py` | Interfaz gráfica PyQt5 (vector de estado, auditoría Euler, filtros, copiar a Excel). |
 | `test_completo.py` | Suite de pruebas del motor y la interfaz. |
 | `docs/` | Punto A (md + pdf), documentación técnica (pdf) y generadores. |
-| `casos_de_prueba.xlsx` | Plan de pruebas manual. |
 
 ## Cómo correr
 ```bash
