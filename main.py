@@ -301,24 +301,28 @@ class VectorView(QtWidgets.QTableView):
 # ── Worker ──────────────────────────────────────────────────────────────────────
 class SimWorker(QtCore.QThread):
     terminado = QtCore.pyqtSignal(object, object, object)
+    fallo     = QtCore.pyqtSignal(str)            # avisa si la simulación lanza un error
 
     def __init__(self, params):
         super().__init__()
         self.p = params
 
     def run(self):
-        p = self.p
-        sim.N_LUGARES = p["n_lugares"]
-        sim.MEDIA_LLEGADA = p["media"] / 60.0
-        sim.T_EULER = p["T"]; sim.H_EULER = p["h"]
-        sim.PRECIO = {"Pequeño": p["pp"], "Grande": p["pg"], "Utilitario": p["pu"]}
-        sim.PROB_TIPO = p["prob_tipo"]
-        sim.PROB_HORAS = p["prob_horas"]
-        sim.resetear_estado()
-        filas = sim.simular(p["tmax"])
-        t_real = filas[-1]["reloj"] if filas else p["tmax"]
-        stats = sim.estadisticas(t_real)
-        self.terminado.emit(filas, stats, list(sim.tablas_euler))
+        try:
+            p = self.p
+            sim.N_LUGARES = p["n_lugares"]
+            sim.MEDIA_LLEGADA = p["media"] / 60.0
+            sim.T_EULER = p["T"]; sim.H_EULER = p["h"]
+            sim.PRECIO = {"Pequeño": p["pp"], "Grande": p["pg"], "Utilitario": p["pu"]}
+            sim.PROB_TIPO = p["prob_tipo"]
+            sim.PROB_HORAS = p["prob_horas"]
+            sim.resetear_estado()
+            filas = sim.simular(p["tmax"])
+            t_real = filas[-1]["reloj"] if filas else p["tmax"]
+            stats = sim.estadisticas(t_real)
+            self.terminado.emit(filas, stats, list(sim.tablas_euler))
+        except Exception as e:                    # el motor valida y puede lanzar ValueError
+            self.fallo.emit(str(e))
 
 
 # ── Ventana principal ───────────────────────────────────────────────────────────
@@ -467,26 +471,81 @@ class Main(QtWidgets.QMainWindow):
         except ValueError:
             return tipo(0)
 
-    def on_simular(self):
-        n = self._leer("n_lugares", int)
-        self._N = n
+    def _num(self, clave, tipo, nombre, errores, minimo=None, estricto=False):
+        """Lee un campo y lo valida. Acumula mensajes en `errores`; devuelve None si falla."""
+        txt = self.inp[clave].text().strip().replace(",", ".")
+        try:
+            v = tipo(txt)
+        except (ValueError, TypeError):
+            errores.append(f"«{nombre}»: «{txt}» no es un número válido.")
+            return None
+        if minimo is not None:
+            if estricto and not v > minimo:
+                errores.append(f"«{nombre}»: debe ser mayor que {minimo} (ingresado: {v}).")
+                return None
+            if not estricto and v < minimo:
+                errores.append(f"«{nombre}»: no puede ser menor que {minimo} (ingresado: {v}).")
+                return None
+        return v
+
+    def _recoger_parametros(self):
+        """Lee y valida todos los campos. Devuelve (params, errores)."""
+        e = []
+        n     = self._num("n_lugares", int,   "Lugares (N)",        e, minimo=1)
+        media = self._num("media",     float, "Media lleg. (min)",  e, minimo=0, estricto=True)
+        tmax  = self._num("tmax",      float, "Tiempo máx (h)",     e, minimo=0, estricto=True)
+        T     = self._num("T",         float, "T (Euler)",          e)
+        h     = self._num("h",         float, "h (Euler)",          e, minimo=0, estricto=True)
+        pp    = self._num("pp",        int,   "Precio Pequeño",     e, minimo=0)
+        pg    = self._num("pg",        int,   "Precio Grande",      e, minimo=0)
+        pu    = self._num("pu",        int,   "Precio Utilitario",  e, minimo=0)
+        tpp   = self._num("tpp",       float, "% Pequeño",          e, minimo=0)
+        tpg   = self._num("tpg",       float, "% Grande",           e, minimo=0)
+        tpu   = self._num("tpu",       float, "% Utilitario",       e, minimo=0)
+        h1    = self._num("h1",        float, "% 1 hora",           e, minimo=0)
+        h2    = self._num("h2",        float, "% 2 horas",          e, minimo=0)
+        h3    = self._num("h3",        float, "% 3 horas",          e, minimo=0)
+        h4    = self._num("h4",        float, "% 4 horas",          e, minimo=0)
+        j     = self._num("j",         float, "Mostrar desde hora", e, minimo=0)
+        i     = self._num("i",         int,   "Cant. filas",        e, minimo=0)
+
+        # sumas de porcentajes (solo si todos sus campos son válidos)
+        if None not in (tpp, tpg, tpu) and abs((tpp + tpg + tpu) - 100) > 0.5:
+            e.append(f"Los % de tipo de auto deben sumar 100 (suman {tpp + tpg + tpu:.0f}).")
+        if None not in (h1, h2, h3, h4) and abs((h1 + h2 + h3 + h4) - 100) > 0.5:
+            e.append(f"Los % de horas deben sumar 100 (suman {h1 + h2 + h3 + h4:.0f}).")
+
+        if e:
+            return None, e
         params = {
-            "n_lugares": n, "media": self._leer("media", float),
-            "tmax": self._leer("tmax", float), "T": self._leer("T", float),
-            "h": self._leer("h", float), "pp": self._leer("pp", int),
-            "pg": self._leer("pg", int), "pu": self._leer("pu", int),
-            "j": self._leer("j", float), "i": self._leer("i", int),
-            "prob_tipo": {"Pequeño": self._leer("tpp", float) / 100,
-                          "Grande": self._leer("tpg", float) / 100,
-                          "Utilitario": self._leer("tpu", float) / 100},
-            "prob_horas": {1: self._leer("h1", float) / 100, 2: self._leer("h2", float) / 100,
-                           3: self._leer("h3", float) / 100, 4: self._leer("h4", float) / 100},
+            "n_lugares": n, "media": media, "tmax": tmax, "T": T, "h": h,
+            "pp": pp, "pg": pg, "pu": pu, "j": j, "i": i,
+            "prob_tipo":  {"Pequeño": tpp / 100, "Grande": tpg / 100, "Utilitario": tpu / 100},
+            "prob_horas": {1: h1 / 100, 2: h2 / 100, 3: h3 / 100, 4: h4 / 100},
         }
+        return params, []
+
+    def on_simular(self):
+        params, errores = self._recoger_parametros()
+        if errores:
+            QtWidgets.QMessageBox.warning(
+                self, "Revisá los parámetros",
+                "No se puede simular por estos motivos:\n\n• " + "\n• ".join(errores))
+            self.lbl_stats.setText("Corregí los parámetros marcados y volvé a simular.")
+            return
+
+        self._N = params["n_lugares"]
         self.btn.setEnabled(False)
         self.lbl_stats.setText("⏳ Simulando…")
         self.worker = SimWorker(params)
         self.worker.terminado.connect(self.on_listo)
+        self.worker.fallo.connect(self.on_fallo)
         self.worker.start()
+
+    def on_fallo(self, mensaje):
+        QtWidgets.QMessageBox.critical(self, "No se pudo completar la simulación", mensaje)
+        self.lbl_stats.setText("La simulación se detuvo por un error. Revisá los parámetros.")
+        self.btn.setEnabled(True)
 
     def on_listo(self, filas, stats, tablas_euler):
         self._todas = filas

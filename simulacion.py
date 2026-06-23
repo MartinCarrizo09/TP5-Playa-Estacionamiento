@@ -50,6 +50,50 @@ tablas_euler  = []
 vector_estado = []
 
 
+# ── Validación de parámetros ────────────────────────────────────────────────────
+def validar_parametros():
+    """Revisa que los parámetros globales sean coherentes ANTES de simular.
+
+    Lanza ValueError con un mensaje claro si algo no cierra. Así el motor falla
+    rápido y explícito en vez de colgarse o devolver números sin sentido.
+    """
+    errores = []
+
+    if not isinstance(N_LUGARES, int) or N_LUGARES < 1:
+        errores.append(f"La cantidad de lugares debe ser un entero >= 1 (recibido: {N_LUGARES}).")
+    if not MEDIA_LLEGADA > 0:
+        errores.append("La media de llegadas debe ser > 0 (con 0 los autos llegarían "
+                       "todos en el mismo instante y la simulación no avanzaría).")
+    if not H_EULER > 0:
+        errores.append(f"El paso h de Euler debe ser > 0 (recibido: {H_EULER}).")
+
+    for tipo, p in PROB_TIPO.items():
+        if p < 0:
+            errores.append(f"La probabilidad de tipo {tipo!r} no puede ser negativa ({p}).")
+    for h, p in PROB_HORAS.items():
+        if p < 0:
+            errores.append(f"La probabilidad de {h} hora(s) no puede ser negativa ({p}).")
+
+    suma_tipo = sum(PROB_TIPO.values())
+    if suma_tipo <= 0:
+        errores.append("Las probabilidades de tipo de auto suman 0: ningún auto podría entrar.")
+    elif abs(suma_tipo - 1.0) > 0.01:
+        errores.append(f"Las probabilidades de tipo de auto deberían sumar 100% (suman {suma_tipo*100:.0f}%).")
+
+    suma_horas = sum(PROB_HORAS.values())
+    if suma_horas <= 0:
+        errores.append("Las probabilidades de horas suman 0: ningún auto tendría duración.")
+    elif abs(suma_horas - 1.0) > 0.01:
+        errores.append(f"Las probabilidades de horas deberían sumar 100% (suman {suma_horas*100:.0f}%).")
+
+    for tipo, precio in PRECIO.items():
+        if precio < 0:
+            errores.append(f"El precio de {tipo!r} no puede ser negativo ({precio}).")
+
+    if errores:
+        raise ValueError("Parámetros inválidos:\n- " + "\n- ".join(errores))
+
+
 # ── Variables aleatorias ───────────────────────────────────────────────────────
 def _take(seed_list, idx):
     """Devuelve (rnd, nuevo_idx). Usa la semilla si queda; si no, RND aleatorio."""
@@ -62,6 +106,7 @@ def _take(seed_list, idx):
 def gen_llegada():
     global _i_lleg
     rnd, _i_lleg = _take(RND_LLEGADA, _i_lleg)
+    rnd = min(max(rnd, 0.0), 0.999999)       # blindaje: rnd en [0, 1) para que log(1-rnd) sea finito
     t = -MEDIA_LLEGADA * math.log(1 - rnd)   # exponencial negativa (en horas)
     return rnd, t
 
@@ -271,6 +316,10 @@ def simular(tiempo_max, hora_desde=0.0, max_filas=None):
        - MAX_ITER iteraciones,
        - max_filas filas visibles (con reloj >= hora_desde) ya generadas."""
     global reloj, iteracion, acum_ocupacion
+
+    validar_parametros()                 # falla rápido y claro si algún parámetro no cierra
+    if not tiempo_max > 0:
+        raise ValueError(f"El tiempo máximo a simular debe ser > 0 (recibido: {tiempo_max}).")
 
     rnd_e, t_e = gen_llegada()
     push_evento(t_e, "llegada_auto")
